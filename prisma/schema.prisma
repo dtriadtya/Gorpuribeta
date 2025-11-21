@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id_user                        Int           @id @default(autoincrement()) @map("id_user")
+  nama_user                      String        @map("nama_user") @db.VarChar(100)
+  email_user                     String        @unique @map("email_user") @db.VarChar(100)
+  password                       String        @db.VarChar(255)
+  phone_user                     String?       @map("phone_user") @db.VarChar(20)
+  role                           Role          @default(USER)
+  isActive                       Boolean       @default(true) @map("is_active")
+  user_dibuat_pada               DateTime      @default(now()) @map("user_dibuat_pada")
+  user_diupdate_pada             DateTime      @updatedAt @map("user_diupdate_pada")
+  reservasi_validasi_dp          Reservation[] @relation("DPValidator")
+  reservasi_validasi_lunas       Reservation[] @relation("PaymentValidator")
+  reservasi_validasi_pelunasan   Reservation[] @relation("PelunasanValidator")
+  reservasi                      Reservation[]
+
+  @@map("user")
+}
+
+model Field {
+  id_lapangan            Int             @id @default(autoincrement()) @map("id_lapangan")
+  nama_lapangan          String          @map("nama_lapangan") @db.VarChar(100)
+  deskripsi              String?         @map("deskripsi") @db.Text
+  harga_per_jam          Decimal         @map("harga_per_jam") @db.Decimal(10, 2)
+  imageUrl               String?         @map("image_url") @db.VarChar(500)
+  fasilitas              Json?           @map("fasilitas")
+  isActive               Boolean         @default(true) @map("is_active")
+  lapangan_dibuat_pada   DateTime        @default(now()) @map("lapangan_dibuat_pada")
+  lapangan_diupdate_pada DateTime        @updatedAt @map("lapangan_diupdate_pada")
+  jadwal                 FieldSchedule[]
+  member                 Member[]
+  reservasi              Reservation[]
+
+  @@map("lapangan")
+}
+
+model FieldSchedule {
+  id_jadwal        Int       @id @default(autoincrement()) @map("id_jadwal")
+  id_lapangan      Int       @map("id_lapangan")
+  dayOfWeek        DayOfWeek @map("day_of_week")
+  jam_mulai_jadwal String    @map("jam_mulai_jadwal")
+  jam_selesai_jadwal String  @map("jam_selesai_jadwal")
+  isActive         Boolean   @default(true) @map("is_active")
+  lapangan         Field     @relation(fields: [id_lapangan], references: [id_lapangan], onDelete: Cascade)
+
+  @@index([id_lapangan], map: "jadwal_lapangan_id_lapangan_fkey")
+  @@map("jadwal_lapangan")
+}
+
+model Reservation {
+  id_reservasi               Int               @id @default(autoincrement()) @map("id_reservasi")
+  id_user                    Int               @map("id_user")
+  id_lapangan                Int               @map("id_lapangan")
+  tanggal_reservasi          DateTime          @map("tanggal_reservasi")
+  jam_mulai_reservasi        String            @map("jam_mulai_reservasi")
+  jam_selesai_reservasi      String            @map("jam_selesai_reservasi")
+  total_harga                Decimal           @map("total_harga") @db.Decimal(10, 2)
+  status_reservasi           ReservationStatus @default(PENDING) @map("status_reservasi")
+  status_pembayaran          PaymentStatus     @default(PENDING) @map("status_pembayaran")
+  tipe_pembayaran            PaymentType       @default(FULL) @map("tipe_pembayaran")
+  paymentAmount              Decimal?          @map("payment_amount") @db.Decimal(10, 2)
+  bukti_lunas                String?           @map("bukti_lunas") @db.VarChar(500)
+  bukti_dp                   String?           @map("bukti_dp") @db.VarChar(500)
+  bukti_pelunasan            String?           @map("bukti_pelunasan") @db.VarChar(500)
+  paymentNotes               String?           @map("payment_notes") @db.Text
+  notes                      String?           @db.Text
+  validasi_lunas_oleh        Int?              @map("validasi_lunas_oleh")
+  paymentValidatedAt         DateTime?         @map("payment_validated_at")
+  validasi_dp_oleh           Int?              @map("validasi_dp_oleh")
+  dpValidatedAt              DateTime?         @map("dp_validated_at")
+  validasi_pelunasan_oleh    Int?              @map("validasi_pelunasan_oleh")
+  pelunasanValidatedAt       DateTime?         @map("pelunasan_validated_at")
+  reservasi_dibuat_pada      DateTime          @default(now()) @map("reservasi_dibuat_pada")
+  reservasi_diupdate_pada    DateTime          @updatedAt @map("reservasi_diupdate_pada")
+  nama_rekening_dp           String?           @map("nama_rekening_dp") @db.VarChar(200)
+  nama_rekening_pelunasan    String?           @map("nama_rekening_pelunasan") @db.VarChar(200)
+  validator_dp               User?             @relation("DPValidator", fields: [validasi_dp_oleh], references: [id_user])
+  lapangan                   Field             @relation(fields: [id_lapangan], references: [id_lapangan], onDelete: Cascade)
+  validator_lunas            User?             @relation("PaymentValidator", fields: [validasi_lunas_oleh], references: [id_user])
+  validator_pelunasan        User?             @relation("PelunasanValidator", fields: [validasi_pelunasan_oleh], references: [id_user])
+  user                       User              @relation(fields: [id_user], references: [id_user], onDelete: Cascade)
+
+  @@index([validasi_dp_oleh], map: "reservasi_validasi_dp_oleh_fkey")
+  @@index([id_lapangan], map: "reservasi_id_lapangan_fkey")
+  @@index([validasi_lunas_oleh], map: "reservasi_validasi_lunas_oleh_fkey")
+  @@index([validasi_pelunasan_oleh], map: "reservasi_validasi_pelunasan_oleh_fkey")
+  @@index([id_user], map: "reservasi_id_user_fkey")
+  @@map("reservasi")
+}
+
+model Member {
+  id_member               Int           @id @default(autoincrement()) @map("id_member")
+  nama_member             String        @map("nama_member") @db.VarChar(100)
+  kontak_member           String        @map("kontak_member") @db.VarChar(100)
+  id_lapangan             Int           @map("id_lapangan")
+  dayOfWeek               DayOfWeek     @map("day_of_week")
+  jam_mulai_member        String        @map("jam_mulai_member")
+  jam_selesai_member      String        @map("jam_selesai_member")
+  jenis_paket_member      MemberPackage @default(MEMBER_1) @map("jenis_paket_member")
+  tanggal_mulai_member    DateTime      @default(now()) @map("tanggal_mulai_member")
+  tanggal_berakhir_member DateTime      @map("tanggal_berakhir_member")
+  isActive                Boolean       @default(true) @map("is_active")
+  member_dibuat_pada      DateTime      @default(now()) @map("member_dibuat_pada")
+  member_diupdate_pada    DateTime      @updatedAt @map("member_diupdate_pada")
+  lapangan                Field         @relation(fields: [id_lapangan], references: [id_lapangan], onDelete: Cascade)
+
+  @@index([id_lapangan], map: "member_id_lapangan_fkey")
+  @@map("member")
+}
+
+enum Role {
+  USER
+  ADMIN
+
+  @@map("role")
+}
+
+enum DayOfWeek {
+  MONDAY    @map("monday")
+  TUESDAY   @map("tuesday")
+  WEDNESDAY @map("wednesday")
+  THURSDAY  @map("thursday")
+  FRIDAY    @map("friday")
+  SATURDAY  @map("saturday")
+  SUNDAY    @map("sunday")
+
+  @@map("day_of_week")
+}
+
+enum MemberPackage {
+  MEMBER_1    @map("member_1")
+  MEMBER_2    @map("member_2")
+  MEMBER_3    @map("member_3")
+  MEMBER_4    @map("member_4")
+  MEMBER_5    @map("member_5")
+  MEMBER_6    @map("member_6")
+  MEMBER_PLUS @map("member_plus_12")
+
+  @@map("member_package")
+}
+
+enum ReservationStatus {
+  PENDING
+  DP_SENT
+  DP_PAID
+  DP_REJECTED
+  PELUNASAN_SENT
+  PELUNASAN_PAID
+  REJECTED
+  CANCELLED
+  COMPLETED
+
+  @@map("reservation_status")
+}
+
+enum PaymentStatus {
+  PENDING
+  FULL_SENT           // Bukti pembayaran FULL sudah diupload
+  FULL_REJECTED       // Bukti pembayaran FULL ditolak admin
+  DP_SENT
+  DP_PAID
+  DP_REJECTED
+  PELUNASAN_SENT
+  PELUNASAN_REJECTED
+  PELUNASAN_PAID
+  PAID
+  REFUNDED
+
+  @@map("payment_status")
+}
+
+enum PaymentType {
+  FULL
+  DP
+
+  @@map("payment_type")
+}
